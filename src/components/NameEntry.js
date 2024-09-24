@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../App.css'; 
 
 const NameEntry = ({ setName, onContinue }) => {
   const [enteredName, setEnteredName] = useState('');

@@ -32,11 +32,12 @@ input {
   font-size: 1rem;
   border-radius: 10px;
   border: 2px solid #FF79C6;
-  width: 100%;
+  width: calc(100% - 24px); /* Ensures input doesn't touch edges */
+  max-width: 100%;
+  box-sizing: border-box; /* Includes padding and border in width calculation */
   box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
-
 input:focus {
   border-color: #50FA7B;
   outline: none;
@@ -114,4 +115,90 @@ input:focus {
   border-color: #50FA7B;
   outline: none;
   box-shadow: 0 4px 8px rgba(80, 250, 123, 0.5);
+}
+
+/* Container for the drawing board */
+.drawing-board-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centers the content horizontally */
+  justify-content: center;
+  height: 100vh; /* Full viewport height */
+}
+
+/* Center the canvas and add border */
+.canvas-container {
+  border: 2px solid #4CAF50; /* Green border */
+  border-radius: 10px; /* Rounded corners */
+  padding: 20px;
+  background-color: #f9f9f9; /* Light background */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Slight shadow for aesthetics */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Button styles */
+.finish-button, .quit-button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background-color: #4CAF50; /* Green button */
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+/* Centering Container for NameEntry */
+.name-entry-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Center content vertically */
+  align-items: center; /* Center content horizontally */
+  min-height: 100vh; /* Ensures it uses the full viewport height */
+  width: 100vw; /* Full viewport width */
+  padding: 0; /* Remove any extra padding */
+  margin: 0; /* Remove any extra margin */
+  box-sizing: border-box; /* Include padding in width/height calculations */
+}
+
+/* Optional: Adjust card appearance */
+.name-entry-card {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* WouldYouRather.css */
+.would-you-rather-container {
+  text-align: center;
+  padding: 20px;
+}
+
+.options-container {
+  display: flex;
+  justify-content: center;
+  gap: 40px; /* Space between emojis */
+  margin: 20px 0;
+}
+
+.emoji-option {
+  font-size: 60px; /* Increase font size to make emojis larger */
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease; /* Smooth transition for scaling and background */
+  padding: 10px; /* Optional padding for a larger clickable area */
+  border-radius: 50%; /* Ensures it is ready to become a circle on hover */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Hover Effect: Creates a circle around the emoji */
+.emoji-option:hover {
+  transform: scale(1.2); /* Enlarge emoji slightly on hover */
+  background-color: rgba(200, 200, 200, 0.3); /* Light gray background circle */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Optional shadow for emphasis */
 }
