@@ -58,11 +58,10 @@ const questions = [
   },
 ];
 
-// Loading Spinner Component
+// Loading Spinner Component with Colorful Animation
 const LoadingSpinner = () => (
-  <div className="spinner">
-    <div className="double-bounce1"></div>
-    <div className="double-bounce2"></div>
+  <div className="spinner-container">
+    <div className="colorful-spinner"></div>
   </div>
 );
 
@@ -70,6 +69,7 @@ const WouldYouRather = ({ onQuit, name }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [loading, setLoading] = useState(false); // State to manage loading animation
   const [questionsAnswered, setQuestionsAnswered] = useState(0); // Track the number of questions answered
+  const [roundOver, setRoundOver] = useState(false); // State to determine if the round is over
 
   // Function to handle the emoji click, save to Firestore, and move to the next question
   const handleSelectOption = async (selectedOption) => {
@@ -82,58 +82,81 @@ const WouldYouRather = ({ onQuit, name }) => {
         emoji: selectedOption.emoji,
         timestamp: new Date(),
       });
-      handleNext(); // Move to the next question after saving the response
+
+      // Pause for 1 second before showing the next question
+      setTimeout(() => {
+        handleNext(); // Move to the next question after saving the response
+      }, 1000);
     } catch (error) {
       console.error('Error saving response to Firestore:', error); // Log the full error object
       alert(`Failed to save your response. Error: ${error.message}`);
-    } finally {
-      setLoading(false); // Hide loading spinner
+      setLoading(false); // Hide loading spinner in case of error
     }
   };
 
-  // Function to move to the next question
+  // Function to move to the next question with 1-second delay
   const handleNext = () => {
-    setQuestionsAnswered((prevCount) => prevCount + 1);
-    if (questionsAnswered + 1 >= 10) {
-      alert('Round complete!'); // Show a message when the round ends
-      onQuit(); // End the round by calling the onQuit function
-    } else {
-      setCurrentQuestionIndex((prevIndex) => (prevIndex + 1) % questions.length);
-    }
+    setLoading(true); // Show loading spinner
+    setTimeout(() => {
+      setQuestionsAnswered((prevCount) => prevCount + 1);
+      if (questionsAnswered + 1 >= 10) {
+        setRoundOver(true); // Set round over when 10 questions are answered
+      } else {
+        setCurrentQuestionIndex((prevIndex) => (prevIndex + 1) % questions.length);
+      }
+      setLoading(false); // Hide loading spinner after the delay
+    }, 1000); // 1-second pause
+  };
+
+  // Function to handle playing the game again
+  const handlePlayAgain = () => {
+    setCurrentQuestionIndex(0);
+    setQuestionsAnswered(0);
+    setRoundOver(false);
   };
 
   const { leftOption, rightOption } = questions[currentQuestionIndex];
 
   return (
     <div className="would-you-rather-container">
-      <h2>Would You Rather?</h2>
-      <p>{questions[currentQuestionIndex].question}</p>
       {loading ? (
-        <LoadingSpinner /> // Show loading spinner while saving
-      ) : (
-        <div className="options-container">
-          {/* Display left emoji option with text */}
-          <div
-            className="emoji-option"
-            onClick={() => handleSelectOption(leftOption)}
-            title={leftOption.text}
-          >
-            <div>{leftOption.emoji}</div>
-            <p>{leftOption.text}</p> {/* Text label under emoji */}
-          </div>
-          {/* Display right emoji option with text */}
-          <div
-            className="emoji-option"
-            onClick={() => handleSelectOption(rightOption)}
-            title={rightOption.text}
-          >
-            <div>{rightOption.emoji}</div>
-            <p>{rightOption.text}</p> {/* Text label under emoji */}
-          </div>
+        <LoadingSpinner /> // Show colorful loading spinner while saving
+      ) : roundOver ? (
+        // Display end-of-round message and options to play again or go back to main menu
+        <div className="round-over-message">
+          <h2>Round Over!</h2>
+          <p>Great job! Would you like to play again or go back to the main menu?</p>
+          <button onClick={handlePlayAgain}>Play Again</button>
+          <button onClick={onQuit}>Back to Main Menu</button>
         </div>
+      ) : (
+        <>
+          <h2>Would You Rather?</h2>
+          <p>{questions[currentQuestionIndex].question}</p>
+          <div className="options-container">
+            {/* Display left emoji option with text */}
+            <div
+              className="emoji-option"
+              onClick={() => handleSelectOption(leftOption)}
+              title={leftOption.text}
+            >
+              <div>{leftOption.emoji}</div>
+              <p>{leftOption.text}</p> {/* Text label under emoji */}
+            </div>
+            {/* Display right emoji option with text */}
+            <div
+              className="emoji-option"
+              onClick={() => handleSelectOption(rightOption)}
+              title={rightOption.text}
+            >
+              <div>{rightOption.emoji}</div>
+              <p>{rightOption.text}</p> {/* Text label under emoji */}
+            </div>
+          </div>
+          <button onClick={handleNext}>Next</button>
+          <button onClick={onQuit}>Quit</button>
+        </>
       )}
-      <button onClick={handleNext}>Next</button>
-      <button onClick={onQuit}>Quit</button>
     </div>
   );
 };
