@@ -1,38 +1,117 @@
+/* General Body Styling */
+body {
+  background: linear-gradient(135deg, #FFDEE9 0%, #B5FFFC 100%);
+  font-family: 'Poppins', sans-serif;
+  margin: 0;
+  padding: 0;
+  color: #333;
+}
+
+/* Centered App Container */
 .App {
   text-align: center;
+  margin: 20px auto;
+  max-width: 600px;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* Headers */
+h2 {
+  font-size: 2rem;
+  color: #333;
+  margin-bottom: 20px;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* Input Fields */
+input {
+  padding: 12px;
+  margin: 15px 0;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 2px solid #FF79C6;
+  width: 100%;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+input:focus {
+  border-color: #50FA7B;
+  outline: none;
+  box-shadow: 0 5px 10px rgba(80, 250, 123, 0.5);
 }
 
-.App-link {
-  color: #61dafb;
+/* Buttons */
+button {
+  padding: 12px 24px;
+  margin: 15px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  background-color: #6272A4;
+  color: #FFF;
+  border: none;
+  border-radius: 10px;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+button:hover {
+  background-color: #50FA7B;
+  transform: translateY(-3px);
+}
+
+/* Special Button Style */
+button.quit {
+  background-color: #FF5555;
+}
+
+button.quit:hover {
+  background-color: #FF79C6;
+}
+
+/* Special Section Styling */
+.section {
+  padding: 20px;
+  background-color: #F1FA8C;
+  border-radius: 12px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.05);
+  margin: 20px 0;
+}
+
+/* Child-Specific Sections */
+h3 {
+  font-size: 1.8rem;
+  color: #6272A4;
+}
+
+p {
+  font-size: 1.2rem;
+  color: #444;
+}
+
+/* Drawing Board */
+.canvas-container {
+  border: 2px solid #FF79C6;
+  border-radius: 10px;
+  padding: 10px;
+  background-color: #FFF;
+  margin-bottom: 20px;
+}
+
+/* Guess Input Field */
+input {
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 1.1rem;
+  width: 100%;
+  border-radius: 8px;
+  border: 2px solid #6272A4;
+}
+
+input:focus {
+  border-color: #50FA7B;
+  outline: none;
+  box-shadow: 0 4px 8px rgba(80, 250, 123, 0.5);
 }

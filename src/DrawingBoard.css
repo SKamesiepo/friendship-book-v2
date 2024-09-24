@@ -1,0 +1,35 @@
+/* Container for the drawing board */
+.drawing-board-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centers the content horizontally */
+    justify-content: center;
+    height: 100vh; /* Full viewport height */
+  }
+  
+  /* Center the canvas and add border */
+  .canvas-container {
+    border: 2px solid #4CAF50; /* Green border */
+    border-radius: 10px; /* Rounded corners */
+    padding: 20px;
+    background-color: #f9f9f9; /* Light background */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Slight shadow for aesthetics */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* Button styles */
+  .finish-button, .quit-button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #4CAF50; /* Green button */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  
+  .finish-button:hover,
+  
