@@ -1,131 +1,115 @@
 // WouldYouRather.js
-import React, { useState } from 'react';
-import { db } from '../firebase'; // Import Firestore database instance
-import { collection, addDoc } from 'firebase/firestore'; // Firestore functions for adding data
-import '../App.css'; // Ensure your CSS is set up for styling the emojis
+import React, { useState, useEffect } from 'react';
+import '../App.css';
 
-// Questions with associated left and right emojis
 const questions = [
-  {
-    question: "Would you rather be invisible or fly?",
-    leftOption: { text: "Invisible", emoji: "🕵️‍♂️" },
-    rightOption: { text: "Fly", emoji: "🦅" },
-  },
-  {
-    question: "Would you rather be a superhero or a wizard?",
-    leftOption: { text: "Superhero", emoji: "🦸‍♂️" },
-    rightOption: { text: "Wizard", emoji: "🧙‍♂️" },
-  },
-  {
-    question: "Would you rather live in space or underwater?",
-    leftOption: { text: "Space", emoji: "🚀" },
-    rightOption: { text: "Underwater", emoji: "🐠" },
-  },
-  {
-    question: "Would you rather have unlimited money or unlimited time?",
-    leftOption: { text: "Money", emoji: "💰" },
-    rightOption: { text: "Time", emoji: "⏳" },
-  },
-  {
-    question: "Would you rather be able to talk to animals or speak every language?",
-    leftOption: { text: "Talk to Animals", emoji: "🦜" },
-    rightOption: { text: "Speak Every Language", emoji: "🗣️" },
-  },
-  {
-    question: "Would you rather have no homework or no exams?",
-    leftOption: { text: "No Homework", emoji: "📚" },
-    rightOption: { text: "No Exams", emoji: "📝" },
-  },
-  {
-    question: "Would you rather be the smartest person or the funniest?",
-    leftOption: { text: "Smartest", emoji: "🧠" },
-    rightOption: { text: "Funniest", emoji: "😂" },
-  },
-  {
-    question: "Would you rather live without music or live without TV?",
-    leftOption: { text: "No Music", emoji: "🎵" },
-    rightOption: { text: "No TV", emoji: "📺" },
-  },
-  {
-    question: "Would you rather have a personal robot or a personal jet?",
-    leftOption: { text: "Robot", emoji: "🤖" },
-    rightOption: { text: "Jet", emoji: "✈️" },
-  },
-  {
-    question: "Would you rather have the ability to time travel or teleport?",
-    leftOption: { text: "Time Travel", emoji: "⏰" },
-    rightOption: { text: "Teleport", emoji: "🚀" },
-  },
+  { question: "Would you rather be invisible or fly?", leftOption: { text: "Invisible", emoji: "🕵️‍♂️" }, rightOption: { text: "Fly", emoji: "🦅" } },
+  { question: "Would you rather be a superhero or a wizard?", leftOption: { text: "Superhero", emoji: "🦸‍♂️" }, rightOption: { text: "Wizard", emoji: "🧙‍♂️" } },
 ];
-
-// Loading Spinner Component with Colorful Animation
-const LoadingSpinner = () => (
-  <div className="spinner-container">
-    <div className="colorful-spinner"></div>
-  </div>
-);
 
 const WouldYouRather = ({ onQuit, name }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [loading, setLoading] = useState(false); // State to manage loading animation
-  const [questionsAnswered, setQuestionsAnswered] = useState(0); // Track the number of questions answered
-  const [roundOver, setRoundOver] = useState(false); // State to determine if the round is over
+  const [questionsAnswered, setQuestionsAnswered] = useState(0);
+  const [opponentAnswers, setOpponentAnswers] = useState({});
+  const [localPlayerKey, setLocalPlayerKey] = useState('');
+  const [playerFinished, setPlayerFinished] = useState(false);
+  const [opponentFinished, setOpponentFinished] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
 
-  // Function to handle the emoji click, save to Firestore, and move to the next question
-  const handleSelectOption = async (selectedOption) => {
-    setLoading(true); // Show loading spinner
-    try {
-      await addDoc(collection(db, 'responses'), {
-        name: name,
-        question: questions[currentQuestionIndex].question,
-        selectedOption: selectedOption.text,
-        emoji: selectedOption.emoji,
-        timestamp: new Date(),
-      });
+  const totalQuestions = questions.length;
 
-      // Pause for 1 second before showing the next question
-      setTimeout(() => {
-        handleNext(); // Move to the next question after saving the response
-      }, 1000);
-    } catch (error) {
-      console.error('Error saving response to Firestore:', error); // Log the full error object
-      alert(`Failed to save your response. Error: ${error.message}`);
-      setLoading(false); // Hide loading spinner in case of error
+  useEffect(() => {
+    const player1Name = localStorage.getItem('player1');
+    const player2Name = localStorage.getItem('player2');
+
+    if (player1Name === name) {
+      setLocalPlayerKey('player1Answers');
+    } else if (player2Name === name) {
+      setLocalPlayerKey('player2Answers');
+    }
+
+    const interval = setInterval(() => {
+      const opponentKey = localPlayerKey === 'player1Answers' ? 'player2Answers' : 'player1Answers';
+      const storedOpponentAnswers = JSON.parse(localStorage.getItem(opponentKey)) || {};
+      setOpponentAnswers(storedOpponentAnswers);
+
+      const opponentFinishKey = localPlayerKey === 'player1Answers' ? 'player2Finished' : 'player1Finished';
+      const isOpponentFinished = localStorage.getItem(opponentFinishKey) === 'true';
+      setOpponentFinished(isOpponentFinished);
+
+      if (playerFinished && isOpponentFinished) {
+        setGameOver(true);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [localPlayerKey, name, playerFinished]);
+
+  const handleSelectOption = (selectedOption) => {
+    const playerAnswers = JSON.parse(localStorage.getItem(localPlayerKey)) || {};
+    playerAnswers[questions[currentQuestionIndex].question] = selectedOption.text;
+    localStorage.setItem(localPlayerKey, JSON.stringify(playerAnswers));
+
+    if (questionsAnswered + 1 === totalQuestions) {
+      setPlayerFinished(true);
+      localStorage.setItem(`${localPlayerKey.replace('Answers', 'Finished')}`, 'true');
+    } else {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setQuestionsAnswered(questionsAnswered + 1);
     }
   };
 
-  // Function to move to the next question with 1-second delay
-  const handleNext = () => {
-    setLoading(true); // Show loading spinner
-    setTimeout(() => {
-      setQuestionsAnswered((prevCount) => prevCount + 1);
-      if (questionsAnswered + 1 >= 10) {
-        setRoundOver(true); // Set round over when 10 questions are answered
-      } else {
-        setCurrentQuestionIndex((prevIndex) => (prevIndex + 1) % questions.length);
-      }
-      setLoading(false); // Hide loading spinner after the delay
-    }, 1000); // 1-second pause
+  const handleFinish = () => {
+    setPlayerFinished(true);
+    localStorage.setItem(`${localPlayerKey.replace('Answers', 'Finished')}`, 'true');
   };
 
-  // Function to handle playing the game again
   const handlePlayAgain = () => {
     setCurrentQuestionIndex(0);
     setQuestionsAnswered(0);
-    setRoundOver(false);
+    setPlayerFinished(false);
+    setOpponentFinished(false);
+    setGameOver(false);
+    localStorage.removeItem('player1Answers');
+    localStorage.removeItem('player2Answers');
+    localStorage.removeItem('player1Finished');
+    localStorage.removeItem('player2Finished');
   };
 
   const { leftOption, rightOption } = questions[currentQuestionIndex];
+  const player1Name = localStorage.getItem('player1');
+  const player2Name = localStorage.getItem('player2');
+  const currentPlayerIsPlayer1 = localPlayerKey === 'player1Answers';
 
   return (
     <div className="would-you-rather-container">
-      {loading ? (
-        <LoadingSpinner /> // Show colorful loading spinner while saving
-      ) : roundOver ? (
-        // Display end-of-round message and options to play again or go back to main menu
+      {gameOver ? (
         <div className="round-over-message">
           <h2>Round Over!</h2>
-          <p>Great job! Would you like to play again or go back to the main menu?</p>
+          <div className="results-container">
+            <div className={`answer-card ${currentPlayerIsPlayer1 ? 'player2-card' : 'player1-card'}`}>
+              <h3>{currentPlayerIsPlayer1 ? player2Name : player1Name}'s Answers:</h3>
+              <ul>
+                {Object.keys(opponentAnswers || {}).map((question) => (
+                  <li key={question}>
+                    <p>{question}</p>
+                    {opponentAnswers[question]}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={`answer-card ${currentPlayerIsPlayer1 ? 'player1-card' : 'player2-card'}`}>
+              <h3>{currentPlayerIsPlayer1 ? player1Name : player2Name}'s Answers:</h3>
+              <ul>
+                {Object.keys(JSON.parse(localStorage.getItem(localPlayerKey)) || {}).map((question) => (
+                  <li key={question}>
+                    <p>{question}</p>
+                    {JSON.parse(localStorage.getItem(localPlayerKey))[question]}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
           <button onClick={handlePlayAgain}>Play Again</button>
           <button onClick={onQuit}>Back to Main Menu</button>
         </div>
@@ -134,27 +118,19 @@ const WouldYouRather = ({ onQuit, name }) => {
           <h2>Would You Rather?</h2>
           <p>{questions[currentQuestionIndex].question}</p>
           <div className="options-container">
-            {/* Display left emoji option with text */}
-            <div
-              className="emoji-option"
-              onClick={() => handleSelectOption(leftOption)}
-              title={leftOption.text}
-            >
+            <div className="emoji-option" onClick={() => handleSelectOption(leftOption)} title={leftOption.text}>
               <div>{leftOption.emoji}</div>
-              <p>{leftOption.text}</p> {/* Text label under emoji */}
+              <p>{leftOption.text}</p>
             </div>
-            {/* Display right emoji option with text */}
-            <div
-              className="emoji-option"
-              onClick={() => handleSelectOption(rightOption)}
-              title={rightOption.text}
-            >
+            <div className="emoji-option" onClick={() => handleSelectOption(rightOption)} title={rightOption.text}>
               <div>{rightOption.emoji}</div>
-              <p>{rightOption.text}</p> {/* Text label under emoji */}
+              <p>{rightOption.text}</p>
             </div>
           </div>
-          <button onClick={handleNext}>Next</button>
-          <button onClick={onQuit}>Quit</button>
+          {questionsAnswered === totalQuestions && !playerFinished && (
+            <button onClick={handleFinish}>Finish</button>
+          )}
+          {playerFinished && !gameOver && <p>Waiting for the other player to finish...</p>}
         </>
       )}
     </div>
