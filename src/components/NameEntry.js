@@ -1,5 +1,5 @@
-// NameEntry.js
 import React, { useState } from 'react';
+import axios from 'axios';
 
 const NameEntry = ({ setName, setSessionId, onContinue }) => {
   const [enteredName, setEnteredName] = useState('');
@@ -7,36 +7,60 @@ const NameEntry = ({ setName, setSessionId, onContinue }) => {
   const [sessionCode, setSessionCode] = useState('');
   const [createdSessionId, setCreatedSessionId] = useState('');
 
-  const handleCreateSession = (e) => {
+  // Create a session
+  const handleCreateSession = async (e) => {
     e.preventDefault();
     setName(enteredName);
 
-    const sessionId = `session_${Math.random().toString(36).substring(7)}`;
-    localStorage.setItem('sessionId', sessionId);
-    localStorage.setItem('player1', enteredName);
+    try {
+      const sessionId = `session_${Math.random().toString(36).substring(7)}`;
+      const response = await axios.post('http://localhost:5000/session', {
+        sessionId,
+        playerName: enteredName,
+      });
 
-    setCreatedSessionId(sessionId);
-    setSessionId(sessionId);
-    onContinue();
+      setCreatedSessionId(sessionId); // Store session ID for UI display
+      setSessionId(sessionId); // Set session ID for main menu
+      localStorage.setItem('sessionId', sessionId); // Save in localStorage
+      localStorage.setItem('player1', enteredName); // Store Player 1
+      console.log(`Session ID created: ${sessionId}`); // Debugging output
+
+      onContinue(); // Continue to main menu
+    } catch (error) {
+      console.error('Error creating session', error);
+    }
   };
 
-  const handleJoinSession = (e) => {
+  // Join a session
+  const handleJoinSession = async (e) => {
     e.preventDefault();
     setName(enteredName);
 
-    const sessionId = localStorage.getItem('sessionId');
-    if (!sessionId || sessionId !== sessionCode) {
-      alert('Session not found!');
-      return;
-    }
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      if (!sessionId || sessionId !== sessionCode) {
+        alert('Session not found!');
+        return;
+      }
 
-    if (localStorage.getItem('player2')) {
-      alert('Session is full!');
-      return;
-    }
+      const response = await axios.post('http://localhost:5000/session', {
+        sessionId: sessionCode,
+        playerName: enteredName,
+      });
 
-    localStorage.setItem('player2', enteredName);
-    onContinue();
+      if (response.data.error) {
+        alert(response.data.error);
+        return;
+      }
+
+      localStorage.setItem('player2', enteredName); // Store Player 2
+      setSessionId(sessionCode); // Set session ID for main menu
+      console.log(`Joined session with ID: ${sessionCode}`); // Debugging output
+
+      onContinue(); // Continue to main menu
+    } catch (error) {
+      alert('Session not found or full!');
+    }
   };
 
   return (

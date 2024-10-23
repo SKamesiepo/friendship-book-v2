@@ -1,5 +1,5 @@
-// WouldYouRather.js
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import '../App.css';
 
 const questions = [
@@ -18,41 +18,63 @@ const WouldYouRather = ({ onQuit, name }) => {
 
   const totalQuestions = questions.length;
 
+  // Get the sessionId from localStorage
+  const sessionId = localStorage.getItem('sessionId');
+
   useEffect(() => {
     const player1Name = localStorage.getItem('player1');
     const player2Name = localStorage.getItem('player2');
 
+    // Determine if the player is player1 or player2 based on localStorage
     if (player1Name === name) {
       setLocalPlayerKey('player1Answers');
     } else if (player2Name === name) {
       setLocalPlayerKey('player2Answers');
     }
 
+    // Poll for opponent's answers and finish state every 1 second
     const interval = setInterval(() => {
-      const opponentKey = localPlayerKey === 'player1Answers' ? 'player2Answers' : 'player1Answers';
-      const storedOpponentAnswers = JSON.parse(localStorage.getItem(opponentKey)) || {};
-      setOpponentAnswers(storedOpponentAnswers);
+      if (sessionId) {
+        axios.get(`http://localhost:5000/session/${sessionId}`)
+          .then((response) => {
+            const { player1Answers, player2Answers, player1Finished, player2Finished } = response.data;
 
-      const opponentFinishKey = localPlayerKey === 'player1Answers' ? 'player2Finished' : 'player1Finished';
-      const isOpponentFinished = localStorage.getItem(opponentFinishKey) === 'true';
-      setOpponentFinished(isOpponentFinished);
+            const opponentKey = localPlayerKey === 'player1Answers' ? 'player2Answers' : 'player1Answers';
+            setOpponentAnswers(response.data[opponentKey] || {});
 
-      if (playerFinished && isOpponentFinished) {
-        setGameOver(true);
+            const opponentFinishedState = localPlayerKey === 'player1Answers' ? player2Finished : player1Finished;
+            setOpponentFinished(opponentFinishedState);
+
+            if (playerFinished && opponentFinishedState) {
+              setGameOver(true);
+            }
+          })
+          .catch((error) => {
+            console.error('Error fetching session data', error);
+            clearInterval(interval); // Stop polling if there's an error
+          });
+      } else {
+        console.error('Session ID is missing');
+        clearInterval(interval); // Stop polling if session ID is missing
       }
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [localPlayerKey, name, playerFinished]);
+    return () => clearInterval(interval); // Clean up on unmount
+  }, [localPlayerKey, name, playerFinished, sessionId]);
 
+  // Save the player's answer and submit to the backend
   const handleSelectOption = (selectedOption) => {
     const playerAnswers = JSON.parse(localStorage.getItem(localPlayerKey)) || {};
     playerAnswers[questions[currentQuestionIndex].question] = selectedOption.text;
-    localStorage.setItem(localPlayerKey, JSON.stringify(playerAnswers));
+    localStorage.setItem(localPlayerKey, JSON.stringify(playerAnswers)); // Save locally
+
+    axios.post(`http://localhost:5000/session/${sessionId}/answers`, {
+      playerName: name,
+      answers: playerAnswers,
+    }).catch(error => console.error('Error submitting answers:', error));
 
     if (questionsAnswered + 1 === totalQuestions) {
-      setPlayerFinished(true);
-      localStorage.setItem(`${localPlayerKey.replace('Answers', 'Finished')}`, 'true');
+      setPlayerFinished(true); // Mark player as finished
     } else {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setQuestionsAnswered(questionsAnswered + 1);
@@ -127,9 +149,13 @@ const WouldYouRather = ({ onQuit, name }) => {
               <p>{rightOption.text}</p>
             </div>
           </div>
+
+          {/* Show finish button if player has answered all questions */}
           {questionsAnswered === totalQuestions && !playerFinished && (
             <button onClick={handleFinish}>Finish</button>
           )}
+
+          {/* Display waiting message if the player finished but the opponent has not */}
           {playerFinished && !gameOver && <p>Waiting for the other player to finish...</p>}
         </>
       )}

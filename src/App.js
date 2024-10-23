@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import NameEntry from './components/NameEntry';
@@ -12,7 +11,7 @@ function App() {
   const [currentView, setCurrentView] = useState('nameEntry');
   const [sessionId, setSessionId] = useState('');
 
-  // Restore session on page load
+  // Effect to check session on page load and restore the name and session
   useEffect(() => {
     const storedSessionId = localStorage.getItem('sessionId');
     const storedName = localStorage.getItem('player1') || localStorage.getItem('player2');
@@ -31,17 +30,13 @@ function App() {
   };
 
   const handleQuitSession = () => {
+    // Clear session and player data
     localStorage.removeItem('sessionId');
     localStorage.removeItem('player1');
     localStorage.removeItem('player2');
     localStorage.removeItem('player1Answers');
     localStorage.removeItem('player2Answers');
     setCurrentView('nameEntry');
-  };
-
-  const getPlayerRole = () => {
-    const player1 = localStorage.getItem('player1');
-    return player1 === name ? 'player1' : 'player2';
   };
 
   return (
@@ -58,8 +53,8 @@ function App() {
                 {currentView === 'mainMenu' && (
                   <MainMenu
                     onSelect={handleViewChange}
-                    player={getPlayerRole()} // Determine if this user is Player 1 or Player 2
-                    sessionId={sessionId}
+                    player={localStorage.getItem('player1') === name ? 'player1' : 'player2'}
+                    sessionId={sessionId} // Pass sessionId to be displayed
                     onQuitSession={handleQuitSession}
                   />
                 )}
