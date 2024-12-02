@@ -48,7 +48,11 @@ function App() {
             element={
               <>
                 {currentView === 'nameEntry' && (
-                  <NameEntry setName={setName} setSessionId={setSessionId} onContinue={() => setCurrentView('mainMenu')} />
+                  <NameEntry 
+                    setName={setName} 
+                    setSessionId={setSessionId} 
+                    onContinue={() => setCurrentView('mainMenu')} 
+                  />
                 )}
                 {currentView === 'mainMenu' && (
                   <MainMenu
@@ -59,10 +63,18 @@ function App() {
                   />
                 )}
                 {currentView === 'wouldYouRather' && (
-                  <WouldYouRather onQuit={() => setCurrentView('mainMenu')} name={name} />
+                  <WouldYouRather 
+                    onQuit={() => setCurrentView('mainMenu')} 
+                    name={name} 
+                    sessionId={sessionId} // Pass sessionId here
+                  />
                 )}
                 {currentView === 'drawingBoard' && (
-                  <DrawingBoard onQuit={() => setCurrentView('mainMenu')} name={name} />
+                  <DrawingBoard 
+                    onQuit={() => setCurrentView('mainMenu')} 
+                    name={name} 
+                    sessionId={sessionId} // Pass sessionId here
+                  />
                 )}
               </>
             }

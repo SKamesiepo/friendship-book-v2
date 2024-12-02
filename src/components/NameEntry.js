@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import BASE_URL from '../config'; // Import the backend URL from a centralized config file
 
 const NameEntry = ({ setName, setSessionId, onContinue }) => {
   const [enteredName, setEnteredName] = useState('');
   const [sessionAction, setSessionAction] = useState('create');
   const [sessionCode, setSessionCode] = useState('');
   const [createdSessionId, setCreatedSessionId] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Create a session
   const handleCreateSession = async (e) => {
@@ -13,21 +15,24 @@ const NameEntry = ({ setName, setSessionId, onContinue }) => {
     setName(enteredName);
 
     try {
+      // Generate a unique session ID
       const sessionId = `session_${Math.random().toString(36).substring(7)}`;
-      const response = await axios.post('http://localhost:5000/session', {
+      await axios.post(`${BASE_URL}/session`, {
         sessionId,
         playerName: enteredName,
       });
 
-      setCreatedSessionId(sessionId); // Store session ID for UI display
-      setSessionId(sessionId); // Set session ID for main menu
-      localStorage.setItem('sessionId', sessionId); // Save in localStorage
-      localStorage.setItem('player1', enteredName); // Store Player 1
-      console.log(`Session ID created: ${sessionId}`); // Debugging output
+      // Update state with session ID
+      setCreatedSessionId(sessionId);
+      setSessionId(sessionId);
 
-      onContinue(); // Continue to main menu
+      console.log(`Session created successfully: ${sessionId}`);
+
+      // Proceed to the next screen
+      onContinue();
     } catch (error) {
-      console.error('Error creating session', error);
+      console.error('Error creating session:', error);
+      setErrorMessage('Failed to create session. Please try again.');
     }
   };
 
@@ -37,29 +42,21 @@ const NameEntry = ({ setName, setSessionId, onContinue }) => {
     setName(enteredName);
 
     try {
-      const sessionId = localStorage.getItem('sessionId');
-      if (!sessionId || sessionId !== sessionCode) {
-        alert('Session not found!');
-        return;
-      }
-
-      const response = await axios.post('http://localhost:5000/session', {
+      await axios.post(`${BASE_URL}/session/join`, {
         sessionId: sessionCode,
         playerName: enteredName,
       });
 
-      if (response.data.error) {
-        alert(response.data.error);
-        return;
-      }
+      // Update state with session ID
+      setSessionId(sessionCode);
 
-      localStorage.setItem('player2', enteredName); // Store Player 2
-      setSessionId(sessionCode); // Set session ID for main menu
-      console.log(`Joined session with ID: ${sessionCode}`); // Debugging output
+      console.log(`Joined session successfully: ${sessionCode}`);
 
-      onContinue(); // Continue to main menu
+      // Proceed to the next screen
+      onContinue();
     } catch (error) {
-      alert('Session not found or full!');
+      console.error('Error joining session:', error);
+      setErrorMessage('Failed to join session. Please check the session ID and try again.');
     }
   };
 
@@ -67,6 +64,7 @@ const NameEntry = ({ setName, setSessionId, onContinue }) => {
     <div>
       <h2>Enter Your Name</h2>
       <form>
+        {/* Name Input */}
         <input
           type="text"
           value={enteredName}
@@ -74,6 +72,7 @@ const NameEntry = ({ setName, setSessionId, onContinue }) => {
           placeholder="Enter your name"
         />
         <div>
+          {/* Radio Buttons for Session Action */}
           <label>
             <input
               type="radio"
@@ -93,6 +92,8 @@ const NameEntry = ({ setName, setSessionId, onContinue }) => {
             Join Session
           </label>
         </div>
+
+        {/* Session Code Input for Joining */}
         {sessionAction === 'join' && (
           <input
             type="text"
@@ -101,17 +102,22 @@ const NameEntry = ({ setName, setSessionId, onContinue }) => {
             placeholder="Enter session code"
           />
         )}
+
+        {/* Submit Button */}
         <button onClick={sessionAction === 'create' ? handleCreateSession : handleJoinSession}>
           Continue
         </button>
 
-        {/* Display the session ID after it is created */}
-        {createdSessionId && (
+        {/* Display Created Session ID */}
+        {createdSessionId && sessionAction === 'create' && (
           <div>
             <p>Session ID: <strong>{createdSessionId}</strong></p>
             <p>Use this Session ID to join the session from another tab or device.</p>
           </div>
         )}
+
+        {/* Error Message */}
+        {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
       </form>
     </div>
   );

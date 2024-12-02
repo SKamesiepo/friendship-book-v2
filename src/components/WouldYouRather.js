@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import BASE_URL from '../config';
 import '../App.css';
 
 const questions = [
@@ -7,83 +8,98 @@ const questions = [
   { question: "Would you rather be a superhero or a wizard?", leftOption: { text: "Superhero", emoji: "🦸‍♂️" }, rightOption: { text: "Wizard", emoji: "🧙‍♂️" } },
 ];
 
-const WouldYouRather = ({ onQuit, name }) => {
+const WouldYouRather = ({ onQuit, name, sessionId }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [opponentAnswers, setOpponentAnswers] = useState({});
-  const [localPlayerKey, setLocalPlayerKey] = useState('');
   const [playerFinished, setPlayerFinished] = useState(false);
   const [opponentFinished, setOpponentFinished] = useState(false);
   const [gameOver, setGameOver] = useState(false);
+  const [playerAnswers, setPlayerAnswers] = useState({});
+  const [errorMessage, setErrorMessage] = useState(''); // New state for errors
 
   const totalQuestions = questions.length;
 
-  // Get the sessionId from localStorage
-  const sessionId = localStorage.getItem('sessionId');
-
   useEffect(() => {
-    const player1Name = localStorage.getItem('player1');
-    const player2Name = localStorage.getItem('player2');
-
-    // Determine if the player is player1 or player2 based on localStorage
-    if (player1Name === name) {
-      setLocalPlayerKey('player1Answers');
-    } else if (player2Name === name) {
-      setLocalPlayerKey('player2Answers');
+    if (!sessionId) {
+      console.error("Error: sessionId is undefined. Cannot fetch session data.");
+      setErrorMessage("Session ID is missing. Please return to the main menu.");
+      return;
     }
 
-    // Poll for opponent's answers and finish state every 1 second
+    // Poll the backend for opponent's answers and finish state
     const interval = setInterval(() => {
-      if (sessionId) {
-        axios.get(`http://localhost:5000/session/${sessionId}`)
-          .then((response) => {
-            const { player1Answers, player2Answers, player1Finished, player2Finished } = response.data;
+      axios
+        .get(`${BASE_URL}/session/${sessionId}`)
+        .then((response) => {
+          const {
+            player1_answers: player1Answers,
+            player2_answers: player2Answers,
+            player1_finished: player1Finished,
+            player2_finished: player2Finished,
+          } = response.data;
 
-            const opponentKey = localPlayerKey === 'player1Answers' ? 'player2Answers' : 'player1Answers';
-            setOpponentAnswers(response.data[opponentKey] || {});
+          // Determine opponent's answers and finish state
+          const opponentAnswers = name === response.data.player1 ? player2Answers : player1Answers;
+          const opponentFinishedState = name === response.data.player1 ? player2Finished : player1Finished;
 
-            const opponentFinishedState = localPlayerKey === 'player1Answers' ? player2Finished : player1Finished;
-            setOpponentFinished(opponentFinishedState);
+          setOpponentAnswers(opponentAnswers ? JSON.parse(opponentAnswers) : {});
+          setOpponentFinished(!!opponentFinishedState);
 
-            if (playerFinished && opponentFinishedState) {
-              setGameOver(true);
-            }
-          })
-          .catch((error) => {
-            console.error('Error fetching session data', error);
-            clearInterval(interval); // Stop polling if there's an error
-          });
-      } else {
-        console.error('Session ID is missing');
-        clearInterval(interval); // Stop polling if session ID is missing
-      }
+          if (playerFinished && opponentFinishedState) {
+            setGameOver(true);
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching session data:", error);
+          setErrorMessage("Failed to fetch session data. Please check your connection.");
+        });
     }, 1000);
 
-    return () => clearInterval(interval); // Clean up on unmount
-  }, [localPlayerKey, name, playerFinished, sessionId]);
+    return () => clearInterval(interval); // Cleanup on component unmount
+  }, [name, sessionId, playerFinished]);
 
-  // Save the player's answer and submit to the backend
-  const handleSelectOption = (selectedOption) => {
-    const playerAnswers = JSON.parse(localStorage.getItem(localPlayerKey)) || {};
-    playerAnswers[questions[currentQuestionIndex].question] = selectedOption.text;
-    localStorage.setItem(localPlayerKey, JSON.stringify(playerAnswers)); // Save locally
-
-    axios.post(`http://localhost:5000/session/${sessionId}/answers`, {
-      playerName: name,
-      answers: playerAnswers,
-    }).catch(error => console.error('Error submitting answers:', error));
-
-    if (questionsAnswered + 1 === totalQuestions) {
-      setPlayerFinished(true); // Mark player as finished
-    } else {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setQuestionsAnswered(questionsAnswered + 1);
+  const handleSelectOption = async (selectedOption) => {
+    if (!sessionId) {
+      console.error("Error: sessionId is undefined. Cannot submit answers.");
+      setErrorMessage("Session ID is missing. Please return to the main menu.");
+      return;
     }
-  };
 
-  const handleFinish = () => {
-    setPlayerFinished(true);
-    localStorage.setItem(`${localPlayerKey.replace('Answers', 'Finished')}`, 'true');
+    // Update player's answers
+    const updatedAnswers = {
+      ...playerAnswers,
+      [questions[currentQuestionIndex].question]: selectedOption.text,
+    };
+
+    setPlayerAnswers(updatedAnswers);
+
+    try {
+      console.log("Submitting answers:", updatedAnswers);
+      console.log("Session ID:", sessionId);
+      console.log("Player Name:", name);
+
+      // Submit the updated answers to the backend
+      await axios.post(`${BASE_URL}/session/${sessionId}/answers`, {
+        playerName: name,
+        answers: updatedAnswers,
+      });
+
+      if (questionsAnswered + 1 === totalQuestions) {
+        setPlayerFinished(true); // Mark player as finished
+
+        console.log("Marking player as finished:", name);
+        await axios.post(`${BASE_URL}/session/${sessionId}/finish`, {
+          playerName: name,
+        });
+      } else {
+        setCurrentQuestionIndex(currentQuestionIndex + 1);
+        setQuestionsAnswered(questionsAnswered + 1);
+      }
+    } catch (error) {
+      console.error("Error submitting answers:", error);
+      setErrorMessage("Failed to submit answers. Please try again.");
+    }
   };
 
   const handlePlayAgain = () => {
@@ -92,41 +108,38 @@ const WouldYouRather = ({ onQuit, name }) => {
     setPlayerFinished(false);
     setOpponentFinished(false);
     setGameOver(false);
-    localStorage.removeItem('player1Answers');
-    localStorage.removeItem('player2Answers');
-    localStorage.removeItem('player1Finished');
-    localStorage.removeItem('player2Finished');
+    setPlayerAnswers({});
+    setErrorMessage('');
   };
 
   const { leftOption, rightOption } = questions[currentQuestionIndex];
-  const player1Name = localStorage.getItem('player1');
-  const player2Name = localStorage.getItem('player2');
-  const currentPlayerIsPlayer1 = localPlayerKey === 'player1Answers';
 
   return (
     <div className="would-you-rather-container">
+      {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
+
       {gameOver ? (
         <div className="round-over-message">
           <h2>Round Over!</h2>
           <div className="results-container">
-            <div className={`answer-card ${currentPlayerIsPlayer1 ? 'player2-card' : 'player1-card'}`}>
-              <h3>{currentPlayerIsPlayer1 ? player2Name : player1Name}'s Answers:</h3>
+            <div className="answer-card player-card">
+              <h3>Your Answers:</h3>
               <ul>
-                {Object.keys(opponentAnswers || {}).map((question) => (
+                {Object.keys(playerAnswers).map((question) => (
                   <li key={question}>
                     <p>{question}</p>
-                    {opponentAnswers[question]}
+                    {playerAnswers[question]}
                   </li>
                 ))}
               </ul>
             </div>
-            <div className={`answer-card ${currentPlayerIsPlayer1 ? 'player1-card' : 'player2-card'}`}>
-              <h3>{currentPlayerIsPlayer1 ? player1Name : player2Name}'s Answers:</h3>
+            <div className="answer-card opponent-card">
+              <h3>Opponent's Answers:</h3>
               <ul>
-                {Object.keys(JSON.parse(localStorage.getItem(localPlayerKey)) || {}).map((question) => (
+                {Object.keys(opponentAnswers).map((question) => (
                   <li key={question}>
                     <p>{question}</p>
-                    {JSON.parse(localStorage.getItem(localPlayerKey))[question]}
+                    {opponentAnswers[question]}
                   </li>
                 ))}
               </ul>
@@ -140,22 +153,28 @@ const WouldYouRather = ({ onQuit, name }) => {
           <h2>Would You Rather?</h2>
           <p>{questions[currentQuestionIndex].question}</p>
           <div className="options-container">
-            <div className="emoji-option" onClick={() => handleSelectOption(leftOption)} title={leftOption.text}>
+            <div
+              className="emoji-option"
+              onClick={() => handleSelectOption(leftOption)}
+              title={leftOption.text}
+            >
               <div>{leftOption.emoji}</div>
               <p>{leftOption.text}</p>
             </div>
-            <div className="emoji-option" onClick={() => handleSelectOption(rightOption)} title={rightOption.text}>
+            <div
+              className="emoji-option"
+              onClick={() => handleSelectOption(rightOption)}
+              title={rightOption.text}
+            >
               <div>{rightOption.emoji}</div>
               <p>{rightOption.text}</p>
             </div>
           </div>
 
-          {/* Show finish button if player has answered all questions */}
           {questionsAnswered === totalQuestions && !playerFinished && (
-            <button onClick={handleFinish}>Finish</button>
+            <button onClick={() => setPlayerFinished(true)}>Finish</button>
           )}
 
-          {/* Display waiting message if the player finished but the opponent has not */}
           {playerFinished && !gameOver && <p>Waiting for the other player to finish...</p>}
         </>
       )}
