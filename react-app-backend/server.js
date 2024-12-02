@@ -144,6 +144,55 @@ app.post('/session/:id/reset', (req, res) => {
   );
 });
 
+app.post('/session/:id/drawing', (req, res) => {
+  const { id } = req.params;
+  const { playerName, drawingData, finished } = req.body;
+
+  db.get('SELECT * FROM sessions WHERE id = ?', [id], (err, session) => {
+    if (err || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const isPlayer1 = session.player1 === playerName;
+    const drawingColumn = isPlayer1 ? 'player1_drawing_base64' : 'player2_drawing_base64';
+    const finishedColumn = isPlayer1 ? 'player1_drawing_finished' : 'player2_drawing_finished';
+
+    db.run(
+      `UPDATE sessions 
+       SET ${drawingColumn} = ?, 
+           ${finishedColumn} = 1, 
+           drawing_finished_count = drawing_finished_count + 1 
+       WHERE id = ?`,
+      [drawingData, id],
+      (updateErr) => {
+        if (updateErr) {
+          return res.status(500).json({ error: 'Failed to save drawing' });
+        }
+        res.json({ message: 'Drawing saved successfully' });
+      }
+    );
+  });
+});
+
+app.get('/session/:id', (req, res) => {
+  const { id } = req.params;
+
+  db.get('SELECT * FROM sessions WHERE id = ?', [id], (err, session) => {
+    if (err || !session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    const gameOver = session.drawing_finished_count === 2;
+
+    res.json({
+      ...session,
+      gameOver,
+    });
+  });
+});
+
+
+
 // Start the Server
 app.listen(port, '0.0.0.0', () => {
   console.log(`Backend running at http://0.0.0.0:${port}`);
