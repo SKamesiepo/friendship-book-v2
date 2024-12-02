@@ -29,7 +29,8 @@ db.serialize(() => {
       player1_answers TEXT,
       player2_answers TEXT,
       player1_finished INTEGER DEFAULT 0,
-      player2_finished INTEGER DEFAULT 0
+      player2_finished INTEGER DEFAULT 0,
+      wyr_finished_count INTEGER DEFAULT 0
     );
   `);
 });
@@ -79,17 +80,18 @@ app.get('/session/:id', (req, res) => {
     if (err || !row) {
       res.status(404).json({ error: 'Session not found' });
     } else {
-      res.json(row);
+      const gameOver = row.wyr_finished_count === 2; // Game is over when both players finish
+      res.json({ ...row, gameOver });
     }
   });
 });
 
-// Submit Answers
+// Submit Answers and Increment `wyr_finished_count`
 app.post('/session/:id/answers', (req, res) => {
   const { id } = req.params;
   const { playerName, answers } = req.body;
 
-  db.get('SELECT player1, player2 FROM sessions WHERE id = ?', [id], (err, session) => {
+  db.get('SELECT * FROM sessions WHERE id = ?', [id], (err, session) => {
     if (err || !session) {
       return res.status(404).json({ error: 'Session not found' });
     }
@@ -98,47 +100,51 @@ app.post('/session/:id/answers', (req, res) => {
     const column = isPlayer1 ? 'player1_answers' : 'player2_answers';
     const finishedColumn = isPlayer1 ? 'player1_finished' : 'player2_finished';
 
+    // Avoid double increment if already marked finished
+    if (session[finishedColumn] === 1) {
+      return res.json({ message: `${playerName} has already submitted answers.` });
+    }
+
     db.run(
-      `UPDATE sessions SET ${column} = ?, ${finishedColumn} = 1 WHERE id = ?`,
+      `UPDATE sessions 
+       SET ${column} = ?, 
+           ${finishedColumn} = 1, 
+           wyr_finished_count = wyr_finished_count + 1 
+       WHERE id = ?`,
       [JSON.stringify(answers), id],
       (err) => {
         if (err) {
-          res.status(500).json({ error: 'Failed to save answers' });
+          res.status(500).json({ error: 'Failed to save answers and update game state' });
         } else {
-          res.json({ message: `${isPlayer1 ? 'Player 1' : 'Player 2'} answers submitted` });
+          res.json({ message: `${playerName}'s answers submitted and game state updated` });
         }
       }
     );
   });
 });
 
-// Mark Player as Finished
-app.post('/session/:id/finish', (req, res) => {
+// Reset Game for "Would You Rather"
+app.post('/session/:id/reset', (req, res) => {
   const { id } = req.params;
-  const { playerName } = req.body;
 
-  db.get('SELECT player1, player2 FROM sessions WHERE id = ?', [id], (err, session) => {
-    if (err || !session) {
-      return res.status(404).json({ error: 'Session not found' });
-    }
-
-    const finishedColumn = session.player1 === playerName ? 'player1_finished' : 'player2_finished';
-
-    db.run(
-      `UPDATE sessions SET ${finishedColumn} = 1 WHERE id = ?`,
-      [id],
-      (err) => {
-        if (err) {
-          res.status(500).json({ error: 'Failed to mark as finished' });
-        } else {
-          res.json({ message: `${playerName} has finished` });
-        }
+  db.run(
+    `UPDATE sessions 
+     SET player1_finished = 0, 
+         player2_finished = 0, 
+         wyr_finished_count = 0 
+     WHERE id = ?`,
+    [id],
+    (err) => {
+      if (err) {
+        res.status(500).json({ error: 'Failed to reset session for "Would You Rather"' });
+      } else {
+        res.json({ message: 'Session reset successfully for "Would You Rather"' });
       }
-    );
-  });
+    }
+  );
 });
 
 // Start the Server
-app.listen(5000, '0.0.0.0', () => {
-  console.log('Backend running at http://0.0.0.0:5000');
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Backend running at http://0.0.0.0:${port}`);
 });

@@ -16,14 +16,14 @@ const WouldYouRather = ({ onQuit, name, sessionId }) => {
   const [opponentFinished, setOpponentFinished] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [playerAnswers, setPlayerAnswers] = useState({});
-  const [errorMessage, setErrorMessage] = useState(''); // New state for errors
+  const [errorMessage, setErrorMessage] = useState('');
 
   const totalQuestions = questions.length;
 
   useEffect(() => {
     if (!sessionId) {
-      console.error("Error: sessionId is undefined. Cannot fetch session data.");
-      setErrorMessage("Session ID is missing. Please return to the main menu.");
+      setErrorMessage('Session ID is missing. Please return to the main menu.');
+      console.error('Session ID is undefined. Cannot fetch session data.');
       return;
     }
 
@@ -37,7 +37,11 @@ const WouldYouRather = ({ onQuit, name, sessionId }) => {
             player2_answers: player2Answers,
             player1_finished: player1Finished,
             player2_finished: player2Finished,
+            wyr_finished_count: finishedCount,
+            gameOver: backendGameOver,
           } = response.data;
+
+          console.log('Session state:', response.data);
 
           // Determine opponent's answers and finish state
           const opponentAnswers = name === response.data.player1 ? player2Answers : player1Answers;
@@ -46,27 +50,30 @@ const WouldYouRather = ({ onQuit, name, sessionId }) => {
           setOpponentAnswers(opponentAnswers ? JSON.parse(opponentAnswers) : {});
           setOpponentFinished(!!opponentFinishedState);
 
-          if (playerFinished && opponentFinishedState) {
+          // If both players are finished, set gameOver to true
+          if (finishedCount === 2 && backendGameOver) {
+            console.log('Game Over: Both players have finished.');
             setGameOver(true);
           }
         })
         .catch((error) => {
-          console.error("Error fetching session data:", error);
-          setErrorMessage("Failed to fetch session data. Please check your connection.");
+          console.error('Error fetching session data:', error);
+          setErrorMessage(
+            error.response?.data?.error || 'Failed to fetch session data. Please check your connection.'
+          );
         });
     }, 1000);
 
-    return () => clearInterval(interval); // Cleanup on component unmount
+    return () => clearInterval(interval);
   }, [name, sessionId, playerFinished]);
 
-  const handleSelectOption = async (selectedOption) => {
+  const handleSelectOption = (selectedOption) => {
     if (!sessionId) {
-      console.error("Error: sessionId is undefined. Cannot submit answers.");
-      setErrorMessage("Session ID is missing. Please return to the main menu.");
+      setErrorMessage('Session ID is missing. Please return to the main menu.');
+      console.error('Session ID is undefined. Cannot submit answers.');
       return;
     }
 
-    // Update player's answers
     const updatedAnswers = {
       ...playerAnswers,
       [questions[currentQuestionIndex].question]: selectedOption.text,
@@ -74,42 +81,49 @@ const WouldYouRather = ({ onQuit, name, sessionId }) => {
 
     setPlayerAnswers(updatedAnswers);
 
-    try {
-      console.log("Submitting answers:", updatedAnswers);
+    if (currentQuestionIndex + 1 === totalQuestions) {
+      setPlayerFinished(true);
+
+      console.log("Player finished all questions. Submitting answers to the backend.");
       console.log("Session ID:", sessionId);
       console.log("Player Name:", name);
 
-      // Submit the updated answers to the backend
-      await axios.post(`${BASE_URL}/session/${sessionId}/answers`, {
+      // Submit answers to the backend only when all questions are answered
+      axios.post(`${BASE_URL}/session/${sessionId}/answers`, {
         playerName: name,
         answers: updatedAnswers,
-      });
-
-      if (questionsAnswered + 1 === totalQuestions) {
-        setPlayerFinished(true); // Mark player as finished
-
-        console.log("Marking player as finished:", name);
-        await axios.post(`${BASE_URL}/session/${sessionId}/finish`, {
-          playerName: name,
+      })
+        .then(() => {
+          console.log('Answers submitted successfully.');
+        })
+        .catch((error) => {
+          console.error('Error submitting answers:', error);
+          setErrorMessage(
+            error.response?.data?.error || 'Failed to submit answers. Please try again.'
+          );
         });
-      } else {
-        setCurrentQuestionIndex(currentQuestionIndex + 1);
-        setQuestionsAnswered(questionsAnswered + 1);
-      }
-    } catch (error) {
-      console.error("Error submitting answers:", error);
-      setErrorMessage("Failed to submit answers. Please try again.");
+    } else {
+      setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setQuestionsAnswered(questionsAnswered + 1);
     }
   };
 
   const handlePlayAgain = () => {
-    setCurrentQuestionIndex(0);
-    setQuestionsAnswered(0);
-    setPlayerFinished(false);
-    setOpponentFinished(false);
-    setGameOver(false);
-    setPlayerAnswers({});
-    setErrorMessage('');
+    axios
+      .post(`${BASE_URL}/session/${sessionId}/reset`)
+      .then(() => {
+        setCurrentQuestionIndex(0);
+        setQuestionsAnswered(0);
+        setPlayerFinished(false);
+        setOpponentFinished(false);
+        setGameOver(false);
+        setPlayerAnswers({});
+        setErrorMessage('');
+      })
+      .catch((error) => {
+        console.error('Error resetting the game:', error);
+        setErrorMessage('Failed to reset the game. Please try again.');
+      });
   };
 
   const { leftOption, rightOption } = questions[currentQuestionIndex];
@@ -153,27 +167,15 @@ const WouldYouRather = ({ onQuit, name, sessionId }) => {
           <h2>Would You Rather?</h2>
           <p>{questions[currentQuestionIndex].question}</p>
           <div className="options-container">
-            <div
-              className="emoji-option"
-              onClick={() => handleSelectOption(leftOption)}
-              title={leftOption.text}
-            >
+            <div className="emoji-option" onClick={() => handleSelectOption(leftOption)}>
               <div>{leftOption.emoji}</div>
               <p>{leftOption.text}</p>
             </div>
-            <div
-              className="emoji-option"
-              onClick={() => handleSelectOption(rightOption)}
-              title={rightOption.text}
-            >
+            <div className="emoji-option" onClick={() => handleSelectOption(rightOption)}>
               <div>{rightOption.emoji}</div>
               <p>{rightOption.text}</p>
             </div>
           </div>
-
-          {questionsAnswered === totalQuestions && !playerFinished && (
-            <button onClick={() => setPlayerFinished(true)}>Finish</button>
-          )}
 
           {playerFinished && !gameOver && <p>Waiting for the other player to finish...</p>}
         </>
